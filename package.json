@@ -1,7 +1,7 @@
 {
   "name": "badminton-analyzer",
   "version": "1.0.0",
-  "description": "Free Badminton Performance Analyzer",
+  "description": "Badminton Performance Analyzer",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
