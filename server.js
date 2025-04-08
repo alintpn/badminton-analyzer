@@ -1,31 +1,23 @@
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
+const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const multer = require('multer');
 
-// Load environment variables
-dotenv.config();
-
-// Initialize Express app
+// Initialize app
 const app = express();
+
+// Middleware
 app.use(express.json());
+app.use(cors({ origin: '*' }));
 
-// Use a more permissive CORS configuration
-app.use(cors({
-  origin: '*',  // Allow all origins (for development)
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
-// Create uploads directory if it doesn't exist
+// Create uploads directory
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 
-// Configure storage for multer
+// Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/');
@@ -37,28 +29,15 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
-  fileFilter: function(req, file, cb) {
-    console.log('Received file:', file.originalname, 'mimetype:', file.mimetype);
-    if (file.mimetype === 'video/mp4' || file.mimetype === 'video/quicktime') {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only MP4 and MOV are allowed.'));
-    }
-  }
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
 });
 
-// Basic test route
+// Basic route
 app.get('/', (req, res) => {
   res.send('Badminton Analyzer API is running!');
 });
 
-// Test route for checking connections
-app.get('/api/test', (req, res) => {
-  res.json({ success: true, message: 'API is working!' });
-});
-
-// Simple test upload form route
+// Test route
 app.get('/test-upload', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -80,39 +59,23 @@ app.get('/test-upload', (req, res) => {
 });
 
 // Upload endpoint
-app.post('/api/upload-video', (req, res) => {
-  console.log('Upload request received');
-  console.log('Headers:', req.headers);
-  console.log('Body keys:', Object.keys(req.body || {}));
-  
-  upload.single('video')(req, res, function(err) {
-    if (err) {
-      console.error('Upload error:', err);
-      return res.status(400).json({
-        success: false,
-        error: err.message
-      });
-    }
-    
-    // Check if file was received
-    if (!req.file) {
-      console.error('No file received');
-      return res.status(400).json({
-        success: false,
-        error: 'No file was uploaded'
-      });
-    }
-    
-    // Log received data for debugging
-    console.log('File received:', req.file);
-    console.log('Form data:', req.body);
-    
-    // Send success response
-    res.json({
-      success: true,
-      videoId: 'test-' + Date.now(),
-      message: 'Video upload received successfully'
+app.post('/api/upload-video', upload.single('video'), (req, res) => {
+  // Check if file was received
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: 'No file was uploaded'
     });
+  }
+  
+  console.log('File received:', req.file);
+  console.log('Form data:', req.body);
+  
+  // Send success response
+  res.json({
+    success: true,
+    videoId: 'test-' + Date.now(),
+    message: 'Video upload received successfully'
   });
 });
 
@@ -138,12 +101,7 @@ app.get('/api/analysis/:id', (req, res) => {
             followThrough: 75,
             contactPoint: 68,
             racketPath: 86
-          },
-          timeMarkers: [
-            { time: 15, label: "Good forehand technique" },
-            { time: 42, label: "Backhand needs improvement" },
-            { time: 78, label: "Excellent smash execution" }
-          ]
+          }
         },
         footwork: {
           overallScore: 72,
@@ -157,12 +115,7 @@ app.get('/api/analysis/:id', (req, res) => {
             movementEfficiency: 70,
             recoverySpeed: 65,
             courtCoverage: 80
-          },
-          timeMarkers: [
-            { time: 28, label: "Good split-step" },
-            { time: 56, label: "Slow recovery to center" },
-            { time: 92, label: "Efficient forehand movement" }
-          ]
+          }
         },
         strategy: {
           overallScore: 75,
@@ -178,11 +131,6 @@ app.get('/api/analysis/:id', (req, res) => {
             { name: "Drops", value: 18 },
             { name: "Drives", value: 12 },
             { name: "Smashes", value: 10 }
-          ],
-          timeMarkers: [
-            { time: 35, label: "Good shot variation" },
-            { time: 68, label: "Missed attacking opportunity" },
-            { time: 105, label: "Effective defensive play" }
           ]
         }
       }
@@ -190,7 +138,7 @@ app.get('/api/analysis/:id', (req, res) => {
   });
 });
 
-// Start server with proper port configuration for Heroku
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
